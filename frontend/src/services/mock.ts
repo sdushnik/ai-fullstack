@@ -30,6 +30,16 @@ export interface MockOptions {
 const DB_KEY = "replay.mock.db.v1";
 const SESSION_KEY = "replay.mock.session.v1";
 
+const demoPosterUrls: Record<string, string> = {
+  "In the Mood for Love": "https://image.tmdb.org/t/p/w500/8BgGbbWiLNhPtkMkN0gGTnbtvBv.jpg",
+  Arrival: "https://image.tmdb.org/t/p/w500/x2FJsf1ElAgr63Y3PNPtJrcmpoe.jpg",
+  "Paddington 2": "https://image.tmdb.org/t/p/w500/1OJ9vkD5xPt3skC6KguyXAgagRZ.jpg",
+  Heat: "https://image.tmdb.org/t/p/w500/uVM0D7Q6U9H6xMSZmMdfwECih5h.jpg",
+  "Spirited Away": "https://image.tmdb.org/t/p/w500/39wmItIWsg5sZMyRUHLkWBcuVCM.jpg",
+  "The Lighthouse": "https://image.tmdb.org/t/p/w500/3nk9UoepYmv1G9oP18q6JJCeYwN.jpg",
+  "Past Lives": "https://image.tmdb.org/t/p/w500/k3waqVXSnvCZWfJYNtdamTgTtTA.jpg",
+};
+
 const uid = () =>
   globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -62,6 +72,18 @@ function serverValidate(input: MovieInput) {
     throw new ApiError("VALIDATION", "Invalid movie entry.", e as Record<string, string>);
 }
 
+function backfillDemoPosters(db: DB, demoUserId: string): boolean {
+  let changed = false;
+  for (const entry of db.entries) {
+    const posterUrl = demoPosterUrls[entry.title];
+    if (entry.userId === demoUserId && entry.posterUrl === null && posterUrl) {
+      entry.posterUrl = posterUrl;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 function seedEntries(): (MovieInput & { createdOffset: number })[] {
   const m = (n: number, d: number) => {
     const t = new Date();
@@ -81,7 +103,7 @@ function seedEntries(): (MovieInput & { createdOffset: number })[] {
         "It is a restless moment.",
         "That era has passed. Nothing that belonged to it exists any more.",
       ],
-      posterUrl: null,
+      posterUrl: demoPosterUrls["In the Mood for Love"],
       createdOffset: 1,
     },
     {
@@ -92,7 +114,7 @@ function seedEntries(): (MovieInput & { createdOffset: number })[] {
       rating: 5,
       review: "A first-contact film that is secretly about grief and choice.",
       quotes: ["If you could see your whole life from start to finish, would you change things?"],
-      posterUrl: null,
+      posterUrl: demoPosterUrls.Arrival,
       createdOffset: 2,
     },
     {
@@ -103,7 +125,7 @@ function seedEntries(): (MovieInput & { createdOffset: number })[] {
       rating: 4,
       review: "Pure kindness, perfectly engineered.",
       quotes: ["If we're kind and polite, the world will be right."],
-      posterUrl: null,
+      posterUrl: demoPosterUrls["Paddington 2"],
       createdOffset: 3,
     },
     {
@@ -114,7 +136,7 @@ function seedEntries(): (MovieInput & { createdOffset: number })[] {
       rating: 4,
       review: null,
       quotes: [],
-      posterUrl: null,
+      posterUrl: demoPosterUrls.Heat,
       createdOffset: 4,
     },
     {
@@ -125,7 +147,7 @@ function seedEntries(): (MovieInput & { createdOffset: number })[] {
       rating: 5,
       review: "Still the gold standard of wonder.",
       quotes: ["Once you've met someone you never really forget them."],
-      posterUrl: null,
+      posterUrl: demoPosterUrls["Spirited Away"],
       createdOffset: 5,
     },
     {
@@ -136,7 +158,7 @@ function seedEntries(): (MovieInput & { createdOffset: number })[] {
       rating: 3,
       review: "Admired more than enjoyed.",
       quotes: [],
-      posterUrl: null,
+      posterUrl: demoPosterUrls["The Lighthouse"],
       createdOffset: 6,
     },
     {
@@ -147,7 +169,7 @@ function seedEntries(): (MovieInput & { createdOffset: number })[] {
       rating: 4,
       review: "Quiet, devastating, generous.",
       quotes: [],
-      posterUrl: null,
+      posterUrl: demoPosterUrls["Past Lives"],
       createdOffset: 7,
     },
   ];
@@ -193,7 +215,11 @@ export function createMockApi(opts: MockOptions = {}): ReplayApi {
   async function ensureDemo() {
     if (opts.seed === false) return;
     const db = load();
-    if (db.users.some((u) => u.email === "demo@replay.app")) return;
+    const demoUser = db.users.find((u) => u.email === "demo@replay.app");
+    if (demoUser) {
+      if (backfillDemoPosters(db, demoUser.id)) save(db);
+      return;
+    }
     const user: StoredUser = {
       id: uid(),
       email: "demo@replay.app",
@@ -264,6 +290,7 @@ export function createMockApi(opts: MockOptions = {}): ReplayApi {
         await wait();
         const db = load();
         const user = requireUser(db);
+        if (user.email === "demo@replay.app" && backfillDemoPosters(db, user.id)) save(db);
         return db.entries.filter((e) => e.userId === user.id).map((e) => hydrate(db, e));
       },
       async get(id) {

@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, inspect, select
 
 from app.main import create_app
-from app.store import QuoteEntity
+from app.store import MovieEntity, QuoteEntity
 
 
 def make_client(*, seed: bool = False, database_url: str = "sqlite://") -> TestClient:
@@ -46,6 +46,36 @@ def test_demo_account_is_seeded_with_movies() -> None:
     assert movies.status_code == 200
     assert len(movies.json()) == 7
     assert movies.json()[0]["title"] == "In the Mood for Love"
+    assert all(
+        movie["posterUrl"].startswith("https://image.tmdb.org/")
+        for movie in movies.json()
+    )
+
+
+def test_existing_demo_movies_receive_missing_posters(tmp_path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'demo.db'}"
+    first_client = make_client(seed=True, database_url=database_url)
+
+    with first_client.app.state.store.session_factory.begin() as session:
+        movies = session.scalars(select(MovieEntity))
+        for movie in movies:
+            movie.poster_url = (
+                "https://example.com/custom-poster.jpg" if movie.title == "Heat" else None
+            )
+
+    second_client = make_client(seed=False, database_url=database_url)
+    response = second_client.post(
+        "/api/auth/signin",
+        json={"email": "demo@replay.app", "password": "password123"},
+    )
+    movies = second_client.get(
+        "/api/movies", headers={"Authorization": response.headers["authorization"]}
+    )
+
+    posters = {movie["title"]: movie["posterUrl"] for movie in movies.json()}
+    assert len(posters) == 7
+    assert all(posters.values())
+    assert posters["Heat"] == "https://example.com/custom-poster.jpg"
 
 
 def test_signup_returns_hashed_session_and_supports_bearer_auth() -> None:

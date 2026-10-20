@@ -137,6 +137,32 @@ describe("mock backend", () => {
     api = createMockApi({ storage: localStorage, latencyMs: 0, seed: false });
   });
 
+  it("seeds every demo movie with a poster URL", async () => {
+    const seededApi = createMockApi({ storage: localStorage, latencyMs: 0 });
+    await seededApi.auth.signIn({ email: "demo@replay.app", password: "password123" });
+
+    const movies = await seededApi.movies.list();
+    expect(movies).toHaveLength(7);
+    expect(movies.every((movie) => movie.posterUrl?.startsWith("https://image.tmdb.org/"))).toBe(
+      true,
+    );
+  });
+
+  it("backfills missing posters for an already-signed-in demo user", async () => {
+    const seededApi = createMockApi({ storage: localStorage, latencyMs: 0 });
+    await seededApi.auth.signIn({ email: "demo@replay.app", password: "password123" });
+    const db = JSON.parse(localStorage.getItem("replay.mock.db.v1") ?? "{}") as {
+      entries: Array<{ title: string; posterUrl: string | null }>;
+    };
+    for (const movie of db.entries) movie.posterUrl = null;
+    localStorage.setItem("replay.mock.db.v1", JSON.stringify(db));
+
+    const movies = await seededApi.movies.list();
+    expect(movies.every((movie) => movie.posterUrl?.startsWith("https://image.tmdb.org/"))).toBe(
+      true,
+    );
+  });
+
   it("registers, signs out and signs back in", async () => {
     await api.auth.signUp({ email: "a@x.com", password: "password1" });
     expect((await api.auth.getCurrentUser())?.email).toBe("a@x.com");

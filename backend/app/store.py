@@ -24,6 +24,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
+    Session,
     mapped_column,
     relationship,
     selectinload,
@@ -35,6 +36,16 @@ from sqlalchemy.types import TypeDecorator
 from .models import MovieInput
 
 PASSWORD_ITERATIONS = 310_000
+
+DEMO_POSTER_URLS = {
+    "In the Mood for Love": "https://image.tmdb.org/t/p/w500/8BgGbbWiLNhPtkMkN0gGTnbtvBv.jpg",
+    "Arrival": "https://image.tmdb.org/t/p/w500/x2FJsf1ElAgr63Y3PNPtJrcmpoe.jpg",
+    "Paddington 2": "https://image.tmdb.org/t/p/w500/1OJ9vkD5xPt3skC6KguyXAgagRZ.jpg",
+    "Heat": "https://image.tmdb.org/t/p/w500/uVM0D7Q6U9H6xMSZmMdfwECih5h.jpg",
+    "Spirited Away": "https://image.tmdb.org/t/p/w500/39wmItIWsg5sZMyRUHLkWBcuVCM.jpg",
+    "The Lighthouse": "https://image.tmdb.org/t/p/w500/3nk9UoepYmv1G9oP18q6JJCeYwN.jpg",
+    "Past Lives": "https://image.tmdb.org/t/p/w500/k3waqVXSnvCZWfJYNtdamTgTtTA.jpg",
+}
 
 
 def utc_now() -> datetime:
@@ -259,7 +270,15 @@ class DatabaseStore:
                     session.delete(entity)
 
     def list_movies(self, user_id: str) -> list[MovieRecord]:
-        with self.session_factory() as session:
+        with self.session_factory.begin() as session:
+            is_demo_user = session.scalar(
+                select(UserEntity.id).where(
+                    UserEntity.id == user_id,
+                    UserEntity.email == "demo@replay.app",
+                )
+            )
+            if is_demo_user is not None:
+                self._backfill_demo_posters(session, user_id)
             entities = session.scalars(
                 select(MovieEntity)
                 .options(selectinload(MovieEntity.quotes))
@@ -383,10 +402,12 @@ class DatabaseStore:
         ]
 
     def _seed_demo(self) -> None:
-        with self.session_factory() as session:
-            if session.scalar(
-                select(UserEntity.id).where(UserEntity.email == "demo@replay.app")
-            ):
+        with self.session_factory.begin() as session:
+            demo_user = session.scalar(
+                select(UserEntity).where(UserEntity.email == "demo@replay.app")
+            )
+            if demo_user is not None:
+                self._backfill_demo_posters(session, demo_user.id)
                 return
 
         salt = secrets.token_bytes(16)
@@ -468,7 +489,7 @@ class DatabaseStore:
                         MovieEntity(
                             id=str(uuid4()),
                             title=title,
-                            poster_url=None,
+                            poster_url=DEMO_POSTER_URLS[title],
                             release_year=year,
                             genre=genre,
                             watched_at=today - timedelta(days=days_ago),
@@ -486,3 +507,13 @@ class DatabaseStore:
                 ):
                     return
             raise
+
+    @staticmethod
+    def _backfill_demo_posters(session: Session, user_id: str) -> None:
+        movies = session.scalars(
+            select(MovieEntity).where(MovieEntity.user_id == user_id)
+        )
+        for movie in movies:
+            poster_url = DEMO_POSTER_URLS.get(movie.title)
+            if movie.poster_url is None and poster_url:
+                movie.poster_url = poster_url
