@@ -1,5 +1,4 @@
-// Contract between the UI and the backend. Implement `ReplayApi` against your
-// real server and swap it in `src/services/index.ts` — no UI changes needed.
+// Shared contract for the frontend services and the production backend API.
 
 export interface User {
   id: string;

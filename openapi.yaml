@@ -3,10 +3,8 @@ info:
   title: Replay API
   version: 1.0.0
   description: |
-    HTTP contract for the backend expected by the Replay frontend.
-    The frontend currently uses a mock implementation of its service
-    interface; these REST paths map each method in `ReplayApi` to an
-    HTTP operation. Responses use the frontend's camelCase data models.
+    Production REST API contract for Replay. Responses use the frontend's
+    camelCase data models.
 servers:
   - url: /api
     description: API base path on the application origin
