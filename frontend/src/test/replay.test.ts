@@ -5,20 +5,49 @@ import { applyFilters, computeStats, DEFAULT_FILTERS } from "@/lib/journal";
 import type { MovieEntry, MovieInput } from "@/services/types";
 
 const form = (o: Partial<MovieFormValues> = {}): MovieFormValues => ({
-  title: "Heat", posterUrl: "", releaseYear: "", genre: "", watchedAt: "2026-01-10", rating: 4, review: "", quotes: [], ...o,
+  title: "Heat",
+  posterUrl: "",
+  releaseYear: "",
+  genre: "",
+  watchedAt: "2026-01-10",
+  rating: 4,
+  review: "",
+  quotes: [],
+  ...o,
 });
 const entry = (o: Partial<MovieEntry>): MovieEntry => ({
-  id: Math.random().toString(), userId: "u", title: "X", posterUrl: null, releaseYear: null, genre: null,
-  watchedAt: "2026-01-01", rating: 3, review: null, quotes: [], createdAt: "", updatedAt: "", ...o,
+  id: Math.random().toString(),
+  userId: "u",
+  title: "X",
+  posterUrl: null,
+  releaseYear: null,
+  genre: null,
+  watchedAt: "2026-01-01",
+  rating: 3,
+  review: null,
+  quotes: [],
+  createdAt: "",
+  updatedAt: "",
+  ...o,
 });
 const input = (o: Partial<MovieInput> = {}): MovieInput => ({
-  title: "Heat", posterUrl: null, releaseYear: null, genre: null, watchedAt: "2026-01-10", rating: 4, review: null, quotes: [], ...o,
+  title: "Heat",
+  posterUrl: null,
+  releaseYear: null,
+  genre: null,
+  watchedAt: "2026-01-10",
+  rating: 4,
+  review: null,
+  quotes: [],
+  ...o,
 });
 
 describe("validation", () => {
   it("requires a title", () => expect(validateMovieInput(form({ title: "  " })).ok).toBe(false));
-  it("requires a watched date", () => expect(validateMovieInput(form({ watchedAt: "" })).ok).toBe(false));
-  it("rejects an impossible date", () => expect(validateMovieInput(form({ watchedAt: "2026-02-30" })).ok).toBe(false));
+  it("requires a watched date", () =>
+    expect(validateMovieInput(form({ watchedAt: "" })).ok).toBe(false));
+  it("rejects an impossible date", () =>
+    expect(validateMovieInput(form({ watchedAt: "2026-02-30" })).ok).toBe(false));
   it("rejects rating 0 and 6", () => {
     expect(validateMovieInput(form({ rating: 0 })).ok).toBe(false);
     expect(validateMovieInput(form({ rating: 6 })).ok).toBe(false);
@@ -29,7 +58,13 @@ describe("validation", () => {
   });
   it("drops empty quotes and nulls empty optionals", () => {
     const r = validateMovieInput(form({ quotes: ["a", " "] }));
-    expect(r.ok && r.value).toMatchObject({ quotes: ["a"], posterUrl: null, genre: null, review: null, releaseYear: null });
+    expect(r.ok && r.value).toMatchObject({
+      quotes: ["a"],
+      posterUrl: null,
+      genre: null,
+      review: null,
+      releaseYear: null,
+    });
   });
 });
 
@@ -40,12 +75,18 @@ describe("filters and sorting", () => {
     entry({ id: "c", title: "Heat", genre: "Thriller", rating: 4, watchedAt: "2026-04-01" }),
   ];
   it("combines search, genre and rating", () => {
-    expect(applyFilters(list, { ...DEFAULT_FILTERS, search: "al", genre: "Horror" }).map((e) => e.id)).toEqual(["b"]);
-    expect(applyFilters(list, { ...DEFAULT_FILTERS, search: "a", rating: "5" }).map((e) => e.id)).toEqual(["a"]);
+    expect(
+      applyFilters(list, { ...DEFAULT_FILTERS, search: "al", genre: "Horror" }).map((e) => e.id),
+    ).toEqual(["b"]);
+    expect(
+      applyFilters(list, { ...DEFAULT_FILTERS, search: "a", rating: "5" }).map((e) => e.id),
+    ).toEqual(["a"]);
   });
   it("sorts by watched date and rating", () => {
     expect(applyFilters(list, DEFAULT_FILTERS).map((e) => e.id)).toEqual(["b", "c", "a"]);
-    expect(applyFilters(list, { ...DEFAULT_FILTERS, sort: "rating-desc" }).map((e) => e.id)).toEqual(["a", "b", "c"]);
+    expect(
+      applyFilters(list, { ...DEFAULT_FILTERS, sort: "rating-desc" }).map((e) => e.id),
+    ).toEqual(["a", "b", "c"]);
   });
   it("does not mutate the source list", () => {
     applyFilters(list, { ...DEFAULT_FILTERS, sort: "rating-asc" });
@@ -101,7 +142,9 @@ describe("mock backend", () => {
     expect((await api.auth.getCurrentUser())?.email).toBe("a@x.com");
     await api.auth.signOut();
     expect(await api.auth.getCurrentUser()).toBeNull();
-    await expect(api.auth.signIn({ email: "a@x.com", password: "wrong-pass" })).rejects.toMatchObject({ code: "INVALID_CREDENTIALS" });
+    await expect(
+      api.auth.signIn({ email: "a@x.com", password: "wrong-pass" }),
+    ).rejects.toMatchObject({ code: "INVALID_CREDENTIALS" });
     await api.auth.signIn({ email: "a@x.com", password: "password1" });
     expect(await api.auth.getCurrentUser()).not.toBeNull();
   });
@@ -117,7 +160,9 @@ describe("mock backend", () => {
 
   it("rejects an out-of-range rating on the server", async () => {
     await api.auth.signUp({ email: "a@x.com", password: "password1" });
-    await expect(api.movies.create(input({ rating: 6 }))).rejects.toMatchObject({ code: "VALIDATION" });
+    await expect(api.movies.create(input({ rating: 6 }))).rejects.toMatchObject({
+      code: "VALIDATION",
+    });
   });
 
   it("isolates entries between users", async () => {
@@ -127,7 +172,9 @@ describe("mock backend", () => {
     await api.auth.signUp({ email: "b@x.com", password: "password1" });
     expect(await api.movies.list()).toEqual([]);
     await expect(api.movies.get(mine.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
-    await expect(api.movies.update(mine.id, input({ title: "hacked" }))).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(api.movies.update(mine.id, input({ title: "hacked" }))).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
     await expect(api.movies.remove(mine.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 

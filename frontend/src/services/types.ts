@@ -48,12 +48,7 @@ export interface Credentials {
 }
 
 export type ApiErrorCode =
-  | "UNAUTHORIZED"
-  | "NOT_FOUND"
-  | "VALIDATION"
-  | "CONFLICT"
-  | "INVALID_CREDENTIALS"
-  | "UNKNOWN";
+  "UNAUTHORIZED" | "NOT_FOUND" | "VALIDATION" | "CONFLICT" | "INVALID_CREDENTIALS" | "UNKNOWN";
 
 export class ApiError extends Error {
   constructor(

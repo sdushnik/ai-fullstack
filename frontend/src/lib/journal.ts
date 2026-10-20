@@ -61,7 +61,8 @@ export function computeStats(entries: MovieEntry[], now = new Date(), months = 1
     : null;
 
   const genreCounts = new Map<string, number>();
-  for (const e of entries) if (e.genre) genreCounts.set(e.genre, (genreCounts.get(e.genre) ?? 0) + 1);
+  for (const e of entries)
+    if (e.genre) genreCounts.set(e.genre, (genreCounts.get(e.genre) ?? 0) + 1);
   let topGenre: JournalStats["topGenre"] = null;
   for (const [genre, count] of genreCounts)
     if (!topGenre || count > topGenre.count) topGenre = { genre, count };

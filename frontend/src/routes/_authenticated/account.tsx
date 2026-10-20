@@ -33,10 +33,18 @@ function Account() {
       <p className="eyebrow">Account</p>
       <h1 className="mt-1 text-5xl">Your account</h1>
       <dl className="mt-10 divide-y rounded-lg border bg-card">
-        <div className="flex justify-between gap-4 p-5"><dt className="text-muted-foreground">Email</dt><dd className="truncate">{user.email}</dd></div>
-        <div className="flex justify-between gap-4 p-5"><dt className="text-muted-foreground">Member since</dt><dd>{format(parseISO(user.createdAt), "d MMMM yyyy")}</dd></div>
+        <div className="flex justify-between gap-4 p-5">
+          <dt className="text-muted-foreground">Email</dt>
+          <dd className="truncate">{user.email}</dd>
+        </div>
+        <div className="flex justify-between gap-4 p-5">
+          <dt className="text-muted-foreground">Member since</dt>
+          <dd>{format(parseISO(user.createdAt), "d MMMM yyyy")}</dd>
+        </div>
       </dl>
-      <Button variant="outline" className="mt-8" onClick={signOut}>Sign out</Button>
+      <Button variant="outline" className="mt-8" onClick={signOut}>
+        Sign out
+      </Button>
     </div>
   );
 }
