@@ -1,0 +1,473 @@
+openapi: 3.1.0
+info:
+  title: Replay API
+  version: 1.0.0
+  description: |
+    HTTP contract for the backend expected by the Replay frontend.
+    The frontend currently uses a mock implementation of its service
+    interface; these REST paths map each method in `ReplayApi` to an
+    HTTP operation. Responses use the frontend's camelCase data models.
+servers:
+  - url: /api
+    description: API base path on the application origin
+tags:
+  - name: Authentication
+  - name: Movies
+paths:
+  /auth/signup:
+    post:
+      tags: [Authentication]
+      operationId: signUp
+      summary: Create an account and start a session
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Credentials"
+      responses:
+        "201":
+          description: Account created; the session cookie is set.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SessionCookie"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+        "500":
+          $ref: "#/components/responses/UnknownError"
+
+  /auth/signin:
+    post:
+      tags: [Authentication]
+      operationId: signIn
+      summary: Sign in and start a session
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Credentials"
+      responses:
+        "200":
+          description: Signed in; the session cookie is set.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SessionCookie"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/InvalidCredentialsError"
+        "500":
+          $ref: "#/components/responses/UnknownError"
+
+  /auth/signout:
+    post:
+      tags: [Authentication]
+      operationId: signOut
+      summary: End the current session
+      security:
+        - sessionCookie: []
+      responses:
+        "204":
+          description: Session ended; the session cookie is cleared.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/ClearedSessionCookie"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/UnknownError"
+
+  /auth/me:
+    get:
+      tags: [Authentication]
+      operationId: getCurrentUser
+      summary: Get the current user, if signed in
+      description: |
+        Authentication is optional. Returns the current user when a valid
+        session cookie is present, or `null` when there is no current session.
+      security: []
+      responses:
+        "200":
+          description: Current user or null for an anonymous session.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/User"
+                  - type: "null"
+        "500":
+          $ref: "#/components/responses/UnknownError"
+
+  /movies:
+    get:
+      tags: [Movies]
+      operationId: listMovies
+      summary: List the current user's movie entries
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Movie entries owned by the current user, possibly empty.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MovieEntry"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/UnknownError"
+    post:
+      tags: [Movies]
+      operationId: createMovie
+      summary: Create a movie entry for the current user
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MovieInput"
+      responses:
+        "201":
+          description: Movie entry created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MovieEntry"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "500":
+          $ref: "#/components/responses/UnknownError"
+
+  /movies/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Movie entry identifier.
+        schema:
+          type: string
+    get:
+      tags: [Movies]
+      operationId: getMovie
+      summary: Get a movie entry
+      description: Only entries owned by the current user can be accessed.
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Movie entry found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MovieEntry"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "500":
+          $ref: "#/components/responses/UnknownError"
+    put:
+      tags: [Movies]
+      operationId: updateMovie
+      summary: Replace a movie entry
+      description: Only entries owned by the current user can be updated.
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MovieInput"
+      responses:
+        "200":
+          description: Movie entry updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MovieEntry"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "500":
+          $ref: "#/components/responses/UnknownError"
+    delete:
+      tags: [Movies]
+      operationId: deleteMovie
+      summary: Delete a movie entry
+      description: |
+        Only entries owned by the current user can be deleted. Associated
+        quotes are deleted with the movie entry.
+      security:
+        - sessionCookie: []
+      responses:
+        "204":
+          description: Movie entry and its quotes deleted.
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "500":
+          $ref: "#/components/responses/UnknownError"
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: replay_session
+      description: HttpOnly session cookie set on sign-up and sign-in.
+  headers:
+    SessionCookie:
+      description: Establishes an authenticated session.
+      schema:
+        type: string
+        example: replay_session=<opaque-session-id>; Path=/; HttpOnly; SameSite=Lax
+    ClearedSessionCookie:
+      description: Expires the authenticated session cookie.
+      schema:
+        type: string
+        example: replay_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0
+  responses:
+    UnauthorizedError:
+      description: Authentication is required or the session is invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          example:
+            code: UNAUTHORIZED
+            message: Please sign in to continue.
+    NotFoundError:
+      description: The entry does not exist or is not owned by the current user.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          example:
+            code: NOT_FOUND
+            message: This movie isn't in your journal.
+    ValidationError:
+      description: Request fields are invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          example:
+            code: VALIDATION
+            message: Invalid movie entry.
+            fieldErrors:
+              rating: Rating must be between 1 and 5.
+    ConflictError:
+      description: An account with this email already exists.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          example:
+            code: CONFLICT
+            message: An account with this email already exists.
+    InvalidCredentialsError:
+      description: Email or password is incorrect.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          example:
+            code: INVALID_CREDENTIALS
+            message: Incorrect email or password.
+    UnknownError:
+      description: Unexpected server error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+          example:
+            code: UNKNOWN
+            message: An unexpected error occurred.
+  schemas:
+    Credentials:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+    User:
+      type: object
+      additionalProperties: false
+      required: [id, email, createdAt]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        createdAt:
+          type: string
+          format: date-time
+    MovieInput:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+        - posterUrl
+        - releaseYear
+        - genre
+        - watchedAt
+        - rating
+        - review
+        - quotes
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        posterUrl:
+          type: [string, "null"]
+          format: uri
+          pattern: "^https?://"
+        releaseYear:
+          type: [integer, "null"]
+          minimum: 1888
+          description: If present, no later than the current year plus five.
+        genre:
+          type: [string, "null"]
+          enum:
+            - Action
+            - Animation
+            - Comedy
+            - Documentary
+            - Drama
+            - Fantasy
+            - Horror
+            - Musical
+            - Mystery
+            - Romance
+            - Sci-Fi
+            - Thriller
+            - Western
+            - null
+        watchedAt:
+          type: string
+          format: date
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        review:
+          type: [string, "null"]
+          maxLength: 5000
+        quotes:
+          type: array
+          items:
+            type: string
+            maxLength: 500
+    MovieQuote:
+      type: object
+      additionalProperties: false
+      required: [id, movieEntryId, text, createdAt]
+      properties:
+        id:
+          type: string
+        movieEntryId:
+          type: string
+        text:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    MovieEntry:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - userId
+        - title
+        - posterUrl
+        - releaseYear
+        - genre
+        - watchedAt
+        - rating
+        - review
+        - quotes
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        title:
+          type: string
+        posterUrl:
+          type: [string, "null"]
+          format: uri
+        releaseYear:
+          type: [integer, "null"]
+        genre:
+          type: [string, "null"]
+        watchedAt:
+          type: string
+          format: date
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        review:
+          type: [string, "null"]
+        quotes:
+          type: array
+          items:
+            $ref: "#/components/schemas/MovieQuote"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum:
+            - UNAUTHORIZED
+            - NOT_FOUND
+            - VALIDATION
+            - CONFLICT
+            - INVALID_CREDENTIALS
+            - UNKNOWN
+        message:
+          type: string
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: string
