@@ -193,7 +193,7 @@ class DatabaseStore:
         if self.engine.dialect.name == "sqlite":
             event.listen(self.engine, "connect", self._enable_sqlite_foreign_keys)
         self.session_factory = sessionmaker(self.engine, expire_on_commit=False)
-        Base.metadata.create_all(self.engine)
+        Base.metadata.create_all(bind=self.engine)
         if seed_demo:
             self._seed_demo()
 

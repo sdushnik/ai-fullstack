@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from sqlalchemy import func, select
+from sqlalchemy import func, inspect, select
 
 from app.main import create_app
 from app.store import QuoteEntity
@@ -84,6 +84,15 @@ def test_database_url_environment_variable_persists_accounts(
         headers={"Authorization": f"Bearer {token}"},
     )
     assert created.status_code == 201
+    quote_columns = {
+        column["name"]
+        for column in inspect(first_client.app.state.store.engine).get_columns("quotes")
+    }
+    assert "position" in quote_columns
+    assert [quote["text"] for quote in created.json()["quotes"]] == [
+        "First quote",
+        "Second quote",
+    ]
 
     second_client = TestClient(create_app(seed_demo=False))
     response = second_client.post(
@@ -99,6 +108,23 @@ def test_database_url_environment_variable_persists_accounts(
     movies = second_client.get("/api/movies", headers=headers)
     assert movies.status_code == 200
     assert movies.json() == [created.json()]
+
+
+def test_cors_allows_default_frontend_dev_server_origins(monkeypatch) -> None:
+    monkeypatch.delenv("FRONTEND_ORIGINS", raising=False)
+    client = make_client()
+
+    response = client.options(
+        "/api/movies",
+        headers={
+            "Origin": "http://127.0.0.1:8080",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:8080"
+    assert response.headers["access-control-allow-credentials"] == "true"
 
 
 def test_signup_rejects_duplicate_and_invalid_credentials() -> None:
