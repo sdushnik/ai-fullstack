@@ -1,50 +1,68 @@
-# Development process
+# Specification-Driven Development Process
 
-Replay is developed through specification-driven, contract-first iterations.
-The product specification and API contract provide a shared reference for
-frontend and backend work, while implementation and tests evolve in small
-steps.
+Replay uses Specification-Driven Development (SDD): define user needs and
+checkable acceptance criteria before implementation, then verify the delivered
+behavior against those criteria. The
+[product specification](../spec.md) and
+[OpenAPI contract](../../openapi.yaml) are shared references for the team.
 
-## Specification-Driven Development
+## Iterative lifecycle
 
-Define the user problem, MVP scope, behaviors, and acceptance criteria before
-implementation. Keep product requirements in the
-[product specification](../spec.md); use those requirements to guide design,
-implementation, and tests. Refine the specification when decisions or
-requirements change so it remains a reliable source of truth.
+Work proceeds through these stages, with feedback and clarification carried
+forward between stages:
 
-## Frontend/backend decoupling
+1. **Frontend Mock Prototype** — build and review a frontend prototype against
+   mocked service data. Use it to make the intended screens and user flows
+   tangible before committing to backend behavior. The mock is a prototyping
+   tool, not the production data source.
+2. **OpenAPI contract** — define the production REST API paths, operations,
+   request and response schemas, and error behavior in `openapi.yaml`. Agree on
+   this boundary before independently implementing frontend integration and
+   backend behavior.
+3. **FastAPI Backend** — implement the specified operations and validation in
+   FastAPI, and test the API behavior against the OpenAPI contract.
+4. **SQLite (SQLAlchemy)** — persist application data using SQLAlchemy ORM with
+   SQLite as the current database. Keep persistence logic database-agnostic by
+   using portable ORM behavior rather than SQLite-specific application logic.
+5. **Integration** — connect the frontend to the production API, verify
+   end-to-end behavior against the acceptance criteria, run frontend and
+   backend tests, and resolve integration defects before declaring the work
+   complete.
 
-Develop the React frontend and FastAPI backend as separate parts of the
-application. The frontend communicates with the backend through HTTP APIs, not
-through backend implementation details. This separation lets the frontend
-continue development against a mock service while the API is being implemented,
-and allows either side to change internally without changing the other side's
-responsibilities.
+Frontend and backend responsibilities remain decoupled by the API contract.
+Changes to the contract are coordinated and reflected in both implementations
+and their tests.
 
-## OpenAPI contract definition
+## Roles and responsibilities
 
-Define API paths, request and response shapes, and expected behavior in
-[`openapi.yaml`](../../openapi.yaml). Treat the contract as the boundary between
-the frontend and backend: frontend integration and backend implementation
-should agree with it. Update the contract alongside any intentional API change
-and verify both sides against the updated definition.
+### Product Manager — Grooming
 
-## Iterative data evolution
+Groom the request before implementation. Structure the requirements as Goal,
+Acceptance Criteria, Out of Scope, and Constraints. Acceptance criteria must be
+observable and checkable. Record moved work as linked follow-up issues rather
+than silently dropping it. The Product Manager does not write code.
 
-Evolve data handling in deliberate stages:
+See [pm.md](./pm.md).
 
-1. **Mock:** use a frontend mock service to build and exercise product flows
-   before a real API is available.
-2. **In-memory:** implement backend behavior against an in-memory store to
-   establish and test the API behavior without depending on persistent data.
-3. **SQLite ORM:** move to SQLite persistence through SQLAlchemy ORM so journal
-   entries survive server restarts.
+### Software Engineer — Implementation and Tests
 
-Keep the API contract and user-facing behavior consistent as storage evolves.
+Implement the agreed acceptance criteria and constraints, following the
+OpenAPI contract and existing architecture. Add or update tests for the
+implemented behavior, run relevant checks, and commit regularly after
+meaningful verified changes.
+
+See [software-engineer.md](./software-engineer.md).
+
+### QA Engineer — Verification
+
+Verify the completed work against every acceptance criterion using the running
+application and relevant tests. Report an explicit PASS or FAIL verdict with
+test commands and results. QA does not modify application code.
+
+See [qa-engineer.md](./qa-engineer.md).
 
 ## Bug tracking
 
-Track defects and follow-up work in GitHub Issues. Report a reproducible
-problem with its observed behavior, expected behavior, and relevant context;
-use issues to prioritize, discuss, and track fixes through verification.
+Track defects and follow-up work in GitHub Issues. Include observed and
+expected behavior, reproducible steps, and relevant acceptance criteria or
+contract references so the issue can be groomed, implemented, and verified.
