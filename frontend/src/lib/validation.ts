@@ -1,4 +1,4 @@
-import { isValid, parseISO } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 import type { MovieInput } from "@/services/types";
 
 export const GENRES = [
@@ -30,14 +30,12 @@ export interface MovieFormValues {
 
 export type FieldErrors = Partial<Record<keyof MovieFormValues, string>>;
 
-export type ValidationResult =
-  | { ok: true; value: MovieInput }
-  | { ok: false; errors: FieldErrors };
+export type ValidationResult = { ok: true; value: MovieInput } | { ok: false; errors: FieldErrors };
 
 export function isValidIsoDate(s: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
   const d = parseISO(s);
-  return isValid(d) && d.toISOString().slice(0, 10) === s;
+  return isValid(d) && format(d, "yyyy-MM-dd") === s;
 }
 
 export function validateMovieInput(v: MovieFormValues, now = new Date()): ValidationResult {
@@ -67,7 +65,8 @@ export function validateMovieInput(v: MovieFormValues, now = new Date()): Valida
   if (v.review.length > 5000) errors.review = "Review must be 5000 characters or fewer.";
 
   const quotes = v.quotes.map((q) => q.trim()).filter(Boolean);
-  if (quotes.some((q) => q.length > 500)) errors.quotes = "Each quote must be 500 characters or fewer.";
+  if (quotes.some((q) => q.length > 500))
+    errors.quotes = "Each quote must be 500 characters or fewer.";
 
   if (Object.keys(errors).length) return { ok: false, errors };
   return {

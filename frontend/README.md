@@ -22,3 +22,11 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+The frontend uses the FastAPI backend for authentication and movie data. Start
+the backend from the repository root with `make run`, then open a second
+terminal at the repository root and run `make frontend`. The frontend dev
+server proxies `/api` requests to `http://127.0.0.1:8000`. If the backend uses a
+different port, pass it to both commands (for example, `make run PORT=8001` and
+`make frontend PORT=8001`). Set `VITE_API_URL` to a different API base URL
+(including `/api`) when deploying or using a remote backend.
