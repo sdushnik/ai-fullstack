@@ -1,11 +1,12 @@
 from fastapi.testclient import TestClient
+from sqlalchemy import func, select
 
 from app.main import create_app
-from app.store import InMemoryStore
+from app.store import QuoteEntity
 
 
-def make_client(*, seed: bool = False) -> TestClient:
-    return TestClient(create_app(InMemoryStore(seed_demo=seed)))
+def make_client(*, seed: bool = False, database_url: str = "sqlite://") -> TestClient:
+    return TestClient(create_app(database_url=database_url, seed_demo=seed))
 
 
 def signup(client: TestClient, email: str = "reader@example.com") -> tuple[dict, str]:
@@ -61,13 +62,43 @@ def test_signup_returns_hashed_session_and_supports_bearer_auth() -> None:
     assert token
     assert "httponly" in response.headers["set-cookie"].lower()
     assert client.cookies.get("replay_session") == token
-    account = client.app.state.store._users["reader@example.com"]
+    account = client.app.state.store.authenticate("reader@example.com", "password123")
     assert account.password_salt
     assert account.password_digest != b"password123"
     assert client.get(
         "/api/movies", headers={"Authorization": f"Bearer {token}"}
     ).status_code == 200
     assert client.get("/api/auth/me").json()["id"] == user["id"]
+
+
+def test_database_url_environment_variable_persists_accounts(
+    tmp_path, monkeypatch
+) -> None:
+    database_url = f"sqlite:///{tmp_path / 'replay.db'}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    first_client = TestClient(create_app(seed_demo=False))
+    user, token = signup(first_client)
+    created = first_client.post(
+        "/api/movies",
+        json=movie_input(quotes=["First quote", "Second quote"]),
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert created.status_code == 201
+
+    second_client = TestClient(create_app(seed_demo=False))
+    response = second_client.post(
+        "/api/auth/signin",
+        json={"email": "reader@example.com", "password": "password123"},
+    )
+
+    assert response.status_code == 200
+    headers = {"Authorization": response.headers["authorization"]}
+    assert second_client.get(
+        "/api/auth/me", headers={"Authorization": response.headers["authorization"]}
+    ).json() == user
+    movies = second_client.get("/api/movies", headers=headers)
+    assert movies.status_code == 200
+    assert movies.json() == [created.json()]
 
 
 def test_signup_rejects_duplicate_and_invalid_credentials() -> None:
@@ -138,6 +169,8 @@ def test_movie_crud_validation_ownership_and_quote_cascade() -> None:
     deleted = client.delete(f"/api/movies/{movie_id}", headers=headers)
     assert deleted.status_code == 204
     assert client.get(f"/api/movies/{movie_id}", headers=headers).status_code == 404
+    with client.app.state.store.session_factory() as session:
+        assert session.scalar(select(func.count()).select_from(QuoteEntity)) == 0
 
 
 def test_auth_required_for_movies_and_signout_revokes_token() -> None:

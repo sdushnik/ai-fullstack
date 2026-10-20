@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..auth import get_store, require_user
 from ..models import MovieEntry, MovieInput, MovieQuote
-from ..store import Account, InMemoryStore, MovieRecord, StoreError
+from ..store import Account, DatabaseStore, MovieRecord, StoreError
 
 router = APIRouter(prefix="/api/movies", tags=["Movies"])
 
@@ -42,7 +42,7 @@ def raise_store_error(error: StoreError) -> None:
 @router.get("", response_model=list[MovieEntry])
 def list_movies(
     user: Account = Depends(require_user),
-    store: InMemoryStore = Depends(get_store),
+    store: DatabaseStore = Depends(get_store),
 ) -> list[MovieEntry]:
     return [public_movie(movie) for movie in store.list_movies(user.id)]
 
@@ -51,7 +51,7 @@ def list_movies(
 def create_movie(
     data: MovieInput,
     user: Account = Depends(require_user),
-    store: InMemoryStore = Depends(get_store),
+    store: DatabaseStore = Depends(get_store),
 ) -> MovieEntry:
     return public_movie(store.create_movie(user.id, data))
 
@@ -60,7 +60,7 @@ def create_movie(
 def get_movie(
     movie_id: str,
     user: Account = Depends(require_user),
-    store: InMemoryStore = Depends(get_store),
+    store: DatabaseStore = Depends(get_store),
 ) -> MovieEntry:
     try:
         return public_movie(store.get_movie(user.id, movie_id))
@@ -73,7 +73,7 @@ def update_movie(
     movie_id: str,
     data: MovieInput,
     user: Account = Depends(require_user),
-    store: InMemoryStore = Depends(get_store),
+    store: DatabaseStore = Depends(get_store),
 ) -> MovieEntry:
     try:
         return public_movie(store.update_movie(user.id, movie_id, data))
@@ -85,7 +85,7 @@ def update_movie(
 def delete_movie(
     movie_id: str,
     user: Account = Depends(require_user),
-    store: InMemoryStore = Depends(get_store),
+    store: DatabaseStore = Depends(get_store),
 ) -> None:
     try:
         store.delete_movie(user.id, movie_id)

@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from fastapi import Depends, HTTPException, Request
 
-from .store import Account, InMemoryStore
+from .store import Account, DatabaseStore
 
 
-def get_store(request: Request) -> InMemoryStore:
+def get_store(request: Request) -> DatabaseStore:
     return request.app.state.store
 
 
@@ -18,7 +18,7 @@ def session_token(request: Request) -> str | None:
 
 
 def optional_user(
-    request: Request, store: InMemoryStore = Depends(get_store)
+    request: Request, store: DatabaseStore = Depends(get_store)
 ) -> Account | None:
     return store.user_for_session(session_token(request))
 

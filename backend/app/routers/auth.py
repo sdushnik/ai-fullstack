@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from ..auth import get_store, optional_user, session_token
 from ..models import Credentials, User
-from ..store import Account, InMemoryStore, StoreError
+from ..store import Account, DatabaseStore, StoreError
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
@@ -10,7 +10,7 @@ def public_user(account: Account) -> User:
     return User(id=account.id, email=account.email, createdAt=account.created_at)
 
 
-def start_session(response: Response, store: InMemoryStore, user: Account) -> None:
+def start_session(response: Response, store: DatabaseStore, user: Account) -> None:
     token = store.create_session(user.id)
     response.set_cookie(
         key="replay_session",
@@ -26,7 +26,7 @@ def start_session(response: Response, store: InMemoryStore, user: Account) -> No
 def sign_up(
     credentials: Credentials,
     response: Response,
-    store: InMemoryStore = Depends(get_store),
+    store: DatabaseStore = Depends(get_store),
 ) -> User:
     try:
         user = store.create_user(credentials.email, credentials.password)
@@ -43,7 +43,7 @@ def sign_up(
 def sign_in(
     credentials: Credentials,
     response: Response,
-    store: InMemoryStore = Depends(get_store),
+    store: DatabaseStore = Depends(get_store),
 ) -> User:
     try:
         user = store.authenticate(credentials.email, credentials.password)
@@ -57,7 +57,7 @@ def sign_in(
 
 
 @router.post("/signout", status_code=204)
-def sign_out(request: Request, response: Response, store: InMemoryStore = Depends(get_store)) -> None:
+def sign_out(request: Request, response: Response, store: DatabaseStore = Depends(get_store)) -> None:
     token = session_token(request)
     if store.user_for_session(token) is None:
         raise HTTPException(

@@ -15,7 +15,11 @@ or `make run PORT=8001`. If using a custom backend port, pass the same port to
 `make frontend PORT=8001` so its `/api` proxy reaches that backend.
 
 The API is available under `/api`; interactive OpenAPI documentation is at
-`/docs`. It uses an in-memory store and resets when the process restarts.
+`/docs`. Data is stored in SQLite by default at `backend/replay.db` and
+persists when the server restarts. Set `DATABASE_URL` to a SQLAlchemy database
+URL to use another database, for example `sqlite:////absolute/path/replay.db`.
+Install the database driver's package as needed when connecting to another
+database.
 
 The seeded demo account is `demo@replay.app` / `password123`. Sign-up and
 sign-in return the user object, set the `replay_session` HttpOnly cookie, and

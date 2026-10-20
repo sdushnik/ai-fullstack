@@ -11,14 +11,32 @@ from fastapi.responses import JSONResponse
 
 from .models import ApiError
 from .routers import auth, movies
-from .store import InMemoryStore
+from .store import DatabaseStore
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_DATABASE_URL = "sqlite:///./replay.db"
 
-def create_app(store: InMemoryStore | None = None) -> FastAPI:
+
+def create_app(
+    store: DatabaseStore | None = None,
+    *,
+    database_url: str | None = None,
+    seed_demo: bool = True,
+) -> FastAPI:
     app = FastAPI(title="Replay API", version="1.0.0")
-    app.state.store = store if store is not None else InMemoryStore()
+    app.state.store = (
+        store
+        if store is not None
+        else DatabaseStore(
+            (
+                database_url
+                if database_url is not None
+                else os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
+            ),
+            seed_demo=seed_demo,
+        )
+    )
 
     origins = [
         origin.strip()
